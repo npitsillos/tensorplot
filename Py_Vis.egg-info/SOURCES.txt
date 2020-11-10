@@ -1,8 +1,0 @@
-README.md
-setup.py
-Py_Vis.egg-info/PKG-INFO
-Py_Vis.egg-info/SOURCES.txt
-Py_Vis.egg-info/dependency_links.txt
-Py_Vis.egg-info/entry_points.txt
-Py_Vis.egg-info/requires.txt
-Py_Vis.egg-info/top_level.txt
