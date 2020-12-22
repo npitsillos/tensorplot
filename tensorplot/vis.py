@@ -1,16 +1,29 @@
 import click
 import pandas as pd
 import tensorboard as tb
-
-from utils import draw
+import plotly.express as px
+from .utils.utils import draw
 
 
 @click.group()
-@click.argument(
-    "experiment-id",
-    type=str)
+@click.option(
+    "-eid",
+    "--experiment-id",
+    "experiment",
+    type=str,
+    default=None,
+    show_default=True,
+    required=False)
+@click.option(
+    "-f",
+    "--file",
+    "file",
+    type=str,
+    default=None,
+    show_default=True,
+    required=False)
 @click.pass_context
-def cli(ctx, experiment_id):
+def cli(ctx, experiment, file):
     """
         Visualisation Tool for My PhD. Integrates tensorboard with plotly to
         automate result visualisation and customize it.\n
@@ -18,17 +31,11 @@ def cli(ctx, experiment_id):
                       file is uploaded to Tensorboard dev.
     """
     ctx.ensure_object(dict)
-
-    ctx.obj["eid"] = experiment_id
+    ctx.obj["eid"] = experiment
+    ctx.obj["file"] = file
 
 
 @cli.command("download")
-# @click.option(
-#     "--same-steps",
-#     is_flag=True,
-#     help="If present then distinguishes whether to pivot the dataframe since\
-#         all scalars have the same steps.")
-@click.pass_context
 def download(ctx):
     """
         Download experiment file as csv.
@@ -41,7 +48,7 @@ def download(ctx):
     exp_df.to_csv(ctx.obj["eid"])
 
 
-@cli.command()
+@cli.command("plot")
 @click.option(
     "--vis/--no-vis",
     help="Whether to visualise plot or not.",
@@ -72,7 +79,8 @@ def download(ctx):
     help="Type of plot to create.")
 def plot(ctx, vis, runs, scalars, save, plot_type):
     """
-        Plots the data in the csv file identified by the EXPERIMENT_ID.
+        Plots the data in the csv file identified by EXPERIMENT_ID\
+            another file name.
     """
     # exp_df = pd.read_csv(ctx.obj["eid"] + ".csv")
 
@@ -98,3 +106,36 @@ def plot(ctx, vis, runs, scalars, save, plot_type):
     #             fig.show()
     #         if save:
     #             fig.write_image("{}.png".format(run))
+
+@cli.command("embedding")
+@click.option(
+    "-c",
+    "--components",
+    "comps",
+    type=int,
+    default=2,
+    required=True
+)
+@click.pass_context
+def embedding(ctx, comps):
+    """ Plots a scatter plot of the data resulting from an embedding transformation. """
+
+    file = ctx.obj["file"]
+
+    df = pd.read_csv(file)
+
+    if comps == 2:
+        fig = px.scatter(df, x="z1", y="z2", color="label")
+    else:
+        fig = px.scatter_3d(df, x="z1", y="z2", z="z3", color="label")
+
+    fig.update_layout(
+        title=file,
+        hovermode="x",
+        title_x=0.5,
+        font=dict(
+            family="Courier New, monospace",
+            size=18
+        )
+    )
+    fig.show()
