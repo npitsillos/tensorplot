@@ -1,2 +1,6 @@
 __pycache__/
 .vscode/
+
+# local generated files
+*.csv
+*.png

@@ -1,17 +1,11 @@
-# Py-Vis
+# Tensorplot
 A visualisation tool to automate the process of grabbing tensorboard events
 data and visualising them.  This allows for faster result analysis in my work.
 
 ## Notes
-Assumes a single experiment is passed initially to start development.
+This is still in its early stages so if a problem arises don't forget to create an issue!
 
-This also requires the use of `torch.utils.tensorboard.SummaryWriter` to create experiments and running the following command before visualising.
-
-```
-tensorboard dev upload --logdir {experiment_path}
-```
-
-**TODO:** Implement feature for when multiple experiments are passed.
+## Co
 
 ## Benefits
 1. Faster result analysis
