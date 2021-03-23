@@ -5,7 +5,7 @@ import tensorboard as tb
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from tensorplot.utils import DRAW_FN_MAP
+from tensorvis.utils import DRAW_FN_MAP
 
 @click.group()
 @click.pass_context

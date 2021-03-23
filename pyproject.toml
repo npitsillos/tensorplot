@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "tensorplot"
+name = "tensorvis"
 version = "0.2.0"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
@@ -16,7 +16,7 @@ seaborn = "^0.11.1"
 [tool.poetry.dev-dependencies]
 
 [tool.poetry.scripts]
-tensorplot = "tensorplot.vis:cli"
+tensorvis = "tensorvis.vis:cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
