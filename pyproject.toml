@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tensorvis"
-version = "0.2.0"
+version = "0.2.1"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
 readme = "README.md"
@@ -14,6 +14,7 @@ tensorboard = "^2.4.0"
 seaborn = "^0.11.1"
 
 [tool.poetry.dev-dependencies]
+pytest = "^6.2.2"
 
 [tool.poetry.scripts]
 tensorvis = "tensorvis.vis:cli"

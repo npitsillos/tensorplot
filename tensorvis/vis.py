@@ -5,7 +5,7 @@ import tensorboard as tb
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from tensorvis.utils import DRAW_FN_MAP
+from tensorvis.utils import separate_exps, DRAW_FN_MAP
 
 @click.group()
 @click.pass_context
@@ -33,6 +33,7 @@ def cli(ctx, save, vis):
     ctx.obj["save"] = save
     ctx.obj["vis"] = vis
 
+
 @cli.command("upload")
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
@@ -59,10 +60,11 @@ def upload(path, name):
             comm.extend(["--name", name])
         process_ret = subprocess.run(comm, capture_output=True)
         return_str = process_ret.stdout
+        exp_id = return_str.decode("utf-8").split("\n")[-2].split()[-1].split('/')[-2]
         data = {
             "date": pd.Series([datetime.date.today().strftime("%d%m%y")], dtype=str),
             "name": pd.Series(["" if name is None else name], dtype=str),
-            "id": pd.Series([return_str.decode("utf-8").split("\n")[-2].split()[-1].split('/')[-2]], dtype=str)
+            "id": pd.Series([exp_id], dtype=str)
         }
         df = pd.DataFrame(data=data)
         if not os.path.exists(log_file_path):
@@ -71,6 +73,7 @@ def upload(path, name):
             old_df = pd.read_csv(log_file_path)
             new_df = old_df.append(df, ignore_index=True)
             new_df.to_csv(log_file_path, index=False)
+        print(f"Experiment ID returned from tensorboard: {exp_id}")
     except subprocess.CalledProcessError as err:
         print(err.stderr)
 
@@ -80,7 +83,6 @@ def upload(path, name):
 def download(experiment):
     """
         Download experiment file as csv.
-
         EXPERIMENT is the id of the experiment to download from Tensorboard dev.
     """
     # Get experiment data using tensorboard and experiment id
@@ -92,6 +94,7 @@ def download(experiment):
     exp_df.columns.name = None
     exp_df.columns.names = [None for name in exp_df.columns.names]
     exp_df.to_csv(os.path.join(os.getcwd(), experiment + ".csv"))
+
 
 @cli.command("plot")
 @click.pass_context
@@ -114,7 +117,11 @@ def download(experiment):
     "max_step",
     help="Maximum step to plot up to.  Handles cases when algorithms have mismatch\
             in number of steps trained on.",
-    type=int
+    type=int)
+@click.option(
+    "--compare",
+    help="Denotes whether experiments are to be compared and appear on the same plot.",
+    is_flag=True
 )
 @click.option(
     "-pt",
@@ -122,26 +129,28 @@ def download(experiment):
     type=click.Choice(["scatter", "bar", "hist", "line"]),
     help="Type of plot to create.",
     default="line")
-def plot(ctx, path, tags, eval_step, max_step, plot_type):
+def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
     """
         Plots the data in the csv file identified by EXPERIMENT.
         
         EXPERIMENT is the id of the experiment to download from Tensorboard dev.
     """
+    print(compare)
     exp_df = pd.read_csv(path, index_col=0)
-    # Get average success and episode length for each step
-    # over all runs
     tags = tags.split(',')
-    exps = exp_df.run.apply(lambda run: run.split('/')[0])
-    max_step = max_step if max_step is not None else exp_df["step"].max()
-    new_df = exp_df.loc[(exp_df["step"] >= eval_step) & (exp_df["step"] <= max_step)]
+    experiment_dfs = separate_exps(exp_df, tags, eval_step)
     for tag in tags:
-        ax = DRAW_FN_MAP[plot_type](new_df, "step", tag, exps)
-        if ctx.obj["save"]:
-            fig = ax.get_figure()
-            fig.savefig(f"{tag}.png")
-        if ctx.obj["vis"]:
+        ax = None
+        for exp_name in experiment_dfs.keys():
+            ax = DRAW_FN_MAP[plot_type](experiment_dfs[exp_name], experiment_dfs[exp_name].index.name, tag, ax=ax)
+            ax.set_title(exp_name)
             plt.show()
+            if ctx.obj["save"]:
+                fig = ax.get_figure()
+                fig.savefig(f"{exp_name}_{tag}.png")
+            if ctx.obj["vis"]:
+                plt.show()
+            if not compare: ax = None
 
 @cli.command("embedding")
 @click.pass_context

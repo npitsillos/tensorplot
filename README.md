@@ -1,19 +1,43 @@
-# Tensorplot
+# tensorvis
 A visualisation tool to automate the process of grabbing tensorboard events
 data and visualising them.  This allows for faster result analysis in my work.
 
-## Features
-* Upload experiments logged with PyTorch's SummaryWriter to tensorboard.dev and creates a log of uploaded experiments.
-* 
+## Commands
 
-## Notes
-This is still in its early stages so if a problem arises don't forget to create an issue!
+## Features
+* Uploads experiment metrics logged to tensorboard to tensorboard.dev and creates a log of uploaded experiments.
+* Downloads experiments from tensorboard.dev to a local csv file.
+* Plots experiment metrics.
+
+## Assumptions
+There can be many different directory structures when running and logging experiments with tensorboard.  This tool makes several assumptions to make it easier to handle dataframes resulting from downloading experiments.
+
+```tensorvis``` assumes the following directory structure of tensorboard logs within the top level directory ```logs```, where each ```run``` subdirectory contains the events file:
+
+```bash
+logs
+├── exp_name_1
+│   ├── run_1
+│   └── run_2
+├── exp_name_2
+│   ├── run_1
+│   ├── run_2
+│   └── run_3
+└── exp_name_3
+    └── run_1
+```
+
+> For a description of how the directory structure is represented in a dataframe follow this [link](https://www.tensorflow.org/tensorboard/dataframe_api#loading_tensorboard_scalars_as_a_pandasdataframe).
+
+By default ```tensorvis``` assumes a single experiment directory is provided which corresponds to a single experiment having multiple runs.  All runs from a single experiment will be aggregate and averaged to plot the mean values along with the standard deviation.
 
 ## Contributing
-If anyone wants to contribute in any way then feel free to open a PR or an issue and we can discuss it.
+I welcome any feedback on ```tensorvis``` in order to improve its usage and versatility.  If you have something specific in mind please don't hesitate to create an issue!
+
+This is still in its early stages so if a problem arises, which will, don't forget to create an issue!
 
 ## Benefits
 1. Faster result analysis
 2. Less code writting
 3. Separate experiments from analysis
-4. Allows for more research tim
+4. Allows for more research time
