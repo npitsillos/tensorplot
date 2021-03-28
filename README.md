@@ -1,13 +1,40 @@
-# tensorvis
-A visualisation tool to automate the process of grabbing tensorboard events
-data and visualising them.  This allows for faster result analysis in my work.
 
-## Commands
+<h1 align="center">
+TensorVis
+</h1>
 
-## Features
+<p align="center">
+<a href="#overview">Overview</a>
+•
+<a href="#features">Features</a>
+•
+<a href="#installation">Installation</a>
+•
+<a href="#contribute">Contribute</a>
+</p>
+
+# Overview
+A command line tool to automate the process of grabbing tensorboard events data and visualising them.  This allows for faster result analysis and separation of the experiment logic from the visualisation aspect of the metrics logged in tensorboard.
+
+# Features
 * Uploads experiment metrics logged to tensorboard to tensorboard.dev and creates a log of uploaded experiments.
 * Downloads experiments from tensorboard.dev to a local csv file.
 * Plots experiment metrics.
+
+## Benefits
+1. Faster result analysis
+2. Less code writting
+3. Separate experiments from analysis
+4. Allows for more research time
+
+# Installation
+```tensorvis``` can be installed using pip with the command:
+
+```
+pip install tensorvis
+```
+
+This will install ```tensorvis``` in the current python environment and will be available through the terminal.
 
 ## Assumptions
 There can be many different directory structures when running and logging experiments with tensorboard.  This tool makes several assumptions to make it easier to handle dataframes resulting from downloading experiments.
@@ -31,13 +58,8 @@ logs
 
 By default ```tensorvis``` assumes a single experiment directory is provided which corresponds to a single experiment having multiple runs.  All runs from a single experiment will be aggregate and averaged to plot the mean values along with the standard deviation.
 
-## Contributing
-I welcome any feedback on ```tensorvis``` in order to improve its usage and versatility.  If you have something specific in mind please don't hesitate to create an issue!
+# Contribute
+Any feedback on ```tensorvis``` is welcomed in order to improve its usage and versatility.  If you have something specific in mind please don't hesitate to create an issue or better yet open a PR!
 
-This is still in its early stages so if a problem arises, which will, don't forget to create an issue!
-
-## Benefits
-1. Faster result analysis
-2. Less code writting
-3. Separate experiments from analysis
-4. Allows for more research time
+## Current Contributors
+* [npitsillos](https://github.com/npitsillos)

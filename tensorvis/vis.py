@@ -2,8 +2,7 @@ import os
 import click
 import pandas as pd
 import tensorboard as tb
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 from tensorvis.utils import separate_exps, DRAW_FN_MAP
 
@@ -26,7 +25,6 @@ def cli(ctx, save, vis):
         EXPERIMENT-ID is the ID of the experiment provided when the events
                       file is uploaded to Tensorboard dev.
     """
-    sns.set_theme()
 
     ctx.ensure_object(dict)
 
@@ -135,22 +133,34 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
         
         EXPERIMENT is the id of the experiment to download from Tensorboard dev.
     """
-    print(compare)
     exp_df = pd.read_csv(path, index_col=0)
     tags = tags.split(',')
     experiment_dfs = separate_exps(exp_df, tags, eval_step)
     for tag in tags:
-        ax = None
+        if compare: fig = go.Figure()
         for exp_name in experiment_dfs.keys():
-            ax = DRAW_FN_MAP[plot_type](experiment_dfs[exp_name], experiment_dfs[exp_name].index.name, tag, ax=ax)
-            ax.set_title(exp_name)
-            plt.show()
-            if ctx.obj["save"]:
-                fig = ax.get_figure()
-                fig.savefig(f"{exp_name}_{tag}.png")
+            experiment_df = experiment_dfs[exp_name]
+            tag_run_cols = [col for col in experiment_df.columns if tag in col]
+            tag_run_df = experiment_df[tag_run_cols].copy(deep=True)
+            tag_run_df["mean"] = tag_run_df.mean(axis=1)
+            tag_run_df["std"] = tag_run_df.std(axis=1)
+            trace = DRAW_FN_MAP[plot_type](tag_run_df, tag_run_df.index, "mean", exp_name)
+            
+            if not compare:
+                fig = go.Figure()
+                fig.add_trace(trace)
+                if ctx.obj["vis"]:
+                    fig.show()
+                if ctx.obj["save"]:
+                    fig.write_image(f"{exp_name}_{tag}.png")
+            else:
+                fig.add_trace(trace)
+        if compare:
             if ctx.obj["vis"]:
-                plt.show()
-            if not compare: ax = None
+                fig.show()
+            if ctx.obj["save"]:
+                fig.write_image(f"{exp_name}_{tag}.png")
+
 
 @cli.command("embedding")
 @click.pass_context
