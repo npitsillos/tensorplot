@@ -42,7 +42,7 @@ def test_exp_df_to_tags_df():
 
     tags_df = exp_df_to_tags_df(exp_df, TEST_DUMMY_TAGS, 100)
 
-    assert len(tags_df.columns) == len(TEST_DUMMY_TAGS)
+    assert len(tags_df.columns) == num_runs * len(TEST_DUMMY_TAGS)
 
 def test_separate_exps():
 

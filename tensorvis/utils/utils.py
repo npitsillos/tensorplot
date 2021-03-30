@@ -5,30 +5,46 @@ import plotly.graph_objects as go
 from typing import List, Dict, Optional
 
 
-def draw_line(experiment_df: pd.DataFrame, x: str, tag: str, exp_name: str) -> go.Scatter:
+def draw_line(experiment_df: pd.DataFrame, exp_name: str) -> List[go.Scatter]:
     """
         Return a line plot of the data provided in the dataframe.
 
         :param experiment_df: Dataframe containing metrics to plot
-        :param x: Values to plot on x-axis
-        :param tag: Metric to plot on y-axis
         :param exp_name: Name of experiment to give to legend
         :return: go.Scatter object with the plotted data
     """
 
-    # return go.Scatter(
-    #     x=experiment_df.index,
-    #     y=experiment_df
-    # )
-
-    sc = go.Scatter(
-        x=x,
-        y=experiment_df[tag],
+    mean_value_trace = go.Scatter(
+        x=experiment_df.index,
+        y=experiment_df["mean"],
+        mode="lines",
         showlegend=True,
         name=exp_name
     )
 
-    return sc
+    mean_plus_std = go.Scatter(
+        x=experiment_df.index,
+        y=experiment_df["mean"] + experiment_df["std"],
+        mode="lines",
+        marker=dict(color="#444"),
+        line=dict(width=0),
+        name=f"{exp_name} upper bound",
+        showlegend=False
+    )
+
+    mean_minus_std = go.Scatter(
+        x=experiment_df.index,
+        y=experiment_df["mean"] - experiment_df["std"],
+        mode="lines",
+        marker=dict(color="#444"),
+        line=dict(width=0),
+        showlegend=False,
+        fillcolor='rgba(68, 68, 68, 0.3)',
+        fill='tonexty',
+        name=f"{exp_name} lower bound"
+    )
+
+    return [mean_value_trace, mean_plus_std, mean_minus_std]
 
 
 def separate_exps(experiments_df, tags, start_step):
