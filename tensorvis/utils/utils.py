@@ -1,16 +1,31 @@
+import plotly
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from ast import literal_eval
 from typing import List, Dict, Optional
 
+def _color_is_hex(color: str) -> bool:
+    return color[0] == '#'
 
-def draw_line(experiment_df: pd.DataFrame, exp_name: str) -> List[go.Scatter]:
+
+def _add_opacity_to_color(color: str, opacity: float) -> str:
+    return "rgba(%d,%d,%d,%f)" % (literal_eval(color[3:]) + (opacity,))
+
+
+def _hex_to_rgba_string(color: str, opacity: int) -> str:
+    rgba = plotly.colors.hex_to_rgb(color) + (opacity,)
+    return "rgba(%d,%d,%d,%f)" % rgba
+
+
+def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go.Scatter]:
     """
         Return a line plot of the data provided in the dataframe.
 
         :param experiment_df: Dataframe containing metrics to plot
         :param exp_name: Name of experiment to give to legend
+        :param color: Color to draw line with
         :return: go.Scatter object with the plotted data
     """
 
@@ -19,27 +34,31 @@ def draw_line(experiment_df: pd.DataFrame, exp_name: str) -> List[go.Scatter]:
         y=experiment_df["mean"],
         mode="lines",
         showlegend=True,
-        name=exp_name
+        name=exp_name,
+        line=dict(color=color)
     )
 
     mean_plus_std = go.Scatter(
         x=experiment_df.index,
         y=experiment_df["mean"] + experiment_df["std"],
         mode="lines",
-        marker=dict(color="#444"),
         line=dict(width=0),
         name=f"{exp_name} upper bound",
         showlegend=False
     )
 
+    if _color_is_hex(color):
+        color = _hex_to_rgba_string(color, 0.3)
+    else:
+        color = _add_opacity_to_color(color, 0.3)
+
     mean_minus_std = go.Scatter(
         x=experiment_df.index,
         y=experiment_df["mean"] - experiment_df["std"],
         mode="lines",
-        marker=dict(color="#444"),
         line=dict(width=0),
         showlegend=False,
-        fillcolor='rgba(68, 68, 68, 0.3)',
+        fillcolor=color,
         fill='tonexty',
         name=f"{exp_name} lower bound"
     )

@@ -1,10 +1,18 @@
 import os
+import json
 import click
+import random
 import pandas as pd
 import tensorboard as tb
+import plotly.express as px
 import plotly.graph_objects as go
 
 from tensorvis.utils import separate_exps, DRAW_FN_MAP
+
+DEFAULT_COLORS = {
+        "qualitative": px.colors.qualitative.Plotly,
+        "sequential": px.colors.sequential.Plotly3,
+    }
 
 @click.group()
 @click.pass_context
@@ -30,6 +38,38 @@ def cli(ctx, save, vis):
 
     ctx.obj["save"] = save
     ctx.obj["vis"] = vis
+    ctx.obj["root"] = os.path.join(os.environ["HOME"], ".tensorplot")
+    config_path = os.path.join(ctx.obj["root"], "config.json")
+    if os.path.exists(config_path):
+        ctx.obj["colors"] = json.load(open(config_path, 'r'))
+    else:
+        os.mkdir(ctx.obj["root"])
+        json.dump(DEFAULT_COLORS, open(config_path, 'w'))
+        ctx.obj["colors"] = DEFAULT_COLORS
+    ctx.obj["config-path"] = config_path
+
+@cli.command("set_palette")
+@click.pass_context
+@click.option(
+    "--qualitative",
+    help="Qualitative color scale string",
+    default="Plotly")
+@click.option(
+    "--sequential",
+    help="Sualitative color scale string",
+    default="Plotly3")
+def set_palette(ctx, qualitative, sequential):
+    """
+        Sets the palette for all different color scales available in plotly and
+        saves it in $HOME/.tensorplot/config.json
+    """
+
+    # assert qualitative in px.colors.qualitative
+    assert sequential.lower() in px.colors.named_colorscales()
+
+    ctx.obj["colors"]["qualitative"] = getattr(px.colors.qualitative, qualitative)
+    ctx.obj["colors"]["sequential"] = getattr(px.colors.sequential, sequential)
+    json.dump(ctx.obj["colors"], open(ctx.obj["config-path"], 'w'))
 
 
 @cli.command("upload")
@@ -136,6 +176,8 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
     exp_df = pd.read_csv(path, index_col=0)
     tags = tags.split(',')
     experiment_dfs = separate_exps(exp_df, tags, eval_step)
+    
+    colors = {k: col for k, col in zip(experiment_dfs.keys(), random.sample(ctx.obj["colors"]["qualitative"], len(experiment_dfs.keys())))}
     for tag in tags:
         traces = []
         for exp_name in experiment_dfs.keys():
@@ -144,7 +186,7 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
             tag_run_df = experiment_df[tag_run_cols].copy(deep=True)
             tag_run_df["mean"] = tag_run_df.mean(axis=1)
             tag_run_df["std"] = tag_run_df.std(axis=1)
-            traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name))
+            traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name, colors[exp_name]))
             
             if not compare:
                 fig = go.Figure(traces)
