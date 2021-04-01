@@ -5,3 +5,6 @@ dist/
 # local generated files
 *.csv
 *.png
+
+# local files used for development with pandas
+*.ipynb

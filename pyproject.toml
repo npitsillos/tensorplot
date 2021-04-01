@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tensorvis"
-version = "0.2.0"
+version = "1.0.0"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
 readme = "README.md"
@@ -11,9 +11,14 @@ python = "^3.7"
 pandas = "^1.1.4"
 click = "^7.1.2"
 tensorboard = "^2.4.0"
-seaborn = "^0.11.1"
+plotly = "^4.14.3"
+kaleido = "^0.2.1"
 
 [tool.poetry.dev-dependencies]
+pytest = "^6.2.2"
+black = "^20.8b1"
+pre-commit = "^2.11.1"
+flakehell = "^0.9.0"
 
 [tool.poetry.scripts]
 tensorvis = "tensorvis.vis:cli"
@@ -21,3 +26,37 @@ tensorvis = "tensorvis.vis:cli"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.flakehell]
+exclude = ["*.ipynb", "*.md"]
+format = "grouped"
+max_line_length = 120
+show_source = true
+
+[tool.flakehell.plugins]
+pycodestyle = ["+*"]
+pyflakes = ["+*"]
+# enable only codes from S100 to S199
+flake8-bandit = ["-*", "+S1??"]
+# enable everything that starts from `flake8-`
+"flake8-*" = ["+*"]
+# explicitly disable plugin
+flake8-docstrings = ["-*"]
+pylint = ["+F*", "+E*", "-E0611", "-E1101", "-E0401", "-E1102", "-E1123"]
