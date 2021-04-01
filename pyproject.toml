@@ -51,10 +51,12 @@ max_line_length = 120
 show_source = true
 
 [tool.flakehell.plugins]
-pyflakes = ["+*", "-F401"]
+pycodestyle = ["+*"]
+pyflakes = ["+*"]
 # enable only codes from S100 to S199
 flake8-bandit = ["-*", "+S1??"]
 # enable everything that starts from `flake8-`
 "flake8-*" = ["+*"]
 # explicitly disable plugin
 flake8-docstrings = ["-*"]
+pylint = ["+F*", "+E*", "-E0611", "-E1101", "-E0401", "-E1102", "-E1123"]
