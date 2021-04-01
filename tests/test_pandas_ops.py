@@ -12,7 +12,7 @@ TEST_DUMMY_TAGS = ["success", "timesteps", "reward"]
 
 
 def test_version():
-    assert __version__.__version__ == "1.0.0"
+    assert __version__.__version__ == "1.0.1"
 
 
 def test_exp_df_to_tags_df():
