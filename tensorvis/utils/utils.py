@@ -1,16 +1,16 @@
 import plotly
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 
 from ast import literal_eval
-from typing import List, Dict, Optional
+from typing import List
+
 
 def _color_is_hex(color: str) -> bool:
-    return color[0] == '#'
+    return color[0] == "#"
 
 
-def _add_opacity_to_color(color: str, opacity: float) -> str:
+def _str_rgb_color_to_rgba_str(color: str, opacity: float) -> str:
     return "rgba(%d,%d,%d,%f)" % (literal_eval(color[3:]) + (opacity,))
 
 
@@ -19,14 +19,14 @@ def _hex_to_rgba_string(color: str, opacity: int) -> str:
     return "rgba(%d,%d,%d,%f)" % rgba
 
 
-def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go.Scatter]:
+def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str = "#636EFA") -> List[go.Scatter]:
     """
-        Return a line plot of the data provided in the dataframe.
+    Return a line plot of the data provided in the dataframe.
 
-        :param experiment_df: Dataframe containing metrics to plot
-        :param exp_name: Name of experiment to give to legend
-        :param color: Color to draw line with
-        :return: go.Scatter object with the plotted data
+    :param experiment_df: Dataframe containing metrics to plot
+    :param exp_name: Name of experiment to give to legend
+    :param color: Color to draw line with
+    :return: go.Scatter object with the plotted data
     """
 
     mean_value_trace = go.Scatter(
@@ -35,7 +35,7 @@ def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go
         mode="lines",
         showlegend=True,
         name=exp_name,
-        line=dict(color=color)
+        line=dict(color=color),
     )
 
     mean_plus_std = go.Scatter(
@@ -44,13 +44,13 @@ def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go
         mode="lines",
         line=dict(width=0),
         name=f"{exp_name} upper bound",
-        showlegend=False
+        showlegend=False,
     )
 
     if _color_is_hex(color):
         color = _hex_to_rgba_string(color, 0.3)
     else:
-        color = _add_opacity_to_color(color, 0.3)
+        color = _str_rgb_color_to_rgba_str(color, 0.3)
 
     mean_minus_std = go.Scatter(
         x=experiment_df.index,
@@ -59,8 +59,8 @@ def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go
         line=dict(width=0),
         showlegend=False,
         fillcolor=color,
-        fill='tonexty',
-        name=f"{exp_name} lower bound"
+        fill="tonexty",
+        name=f"{exp_name} lower bound",
     )
 
     return [mean_value_trace, mean_plus_std, mean_minus_std]
@@ -68,25 +68,22 @@ def draw_line(experiment_df: pd.DataFrame, exp_name: str, color: str) -> List[go
 
 def separate_exps(experiments_df, tags, start_step):
     """
-        Takes an experiment dataframe containing at least one experiment and
-        returns a list of dataframes each corresponding to a separate experiment.
+    Takes an experiment dataframe containing at least one experiment and
+    returns a list of dataframes each corresponding to a separate experiment.
 
-        :param experiments_df: DataFrame containing at list one experiment
-        :param tags: User specified tags corresponding to which metrics to keep
-        :param start_step: First step value for which a metric has been logged
-        :return: Dict mapping experiment names to experiment dfs
+    :param experiments_df: DataFrame containing at list one experiment
+    :param tags: User specified tags corresponding to which metrics to keep
+    :param start_step: First step value for which a metric has been logged
+    :return: Dict mapping experiment names to experiment dfs
     """
 
-    # if single: return [exp_df_to_tags_df(experiments_df, tags, start_step)]
     exp_dfs = {}
 
-    exp_names = set([name_run.split('/')[0] for name_run in experiments_df.run.unique()])
+    exp_names = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
     for exp_name in exp_names:
         experiment_df = exp_df_to_tags_df(
-            experiments_df[experiments_df.run.map(lambda x: exp_name + '/' in x)],
-            tags,
-            start_step
-            )
+            experiments_df[experiments_df.run.map(lambda x: exp_name + "/" in x)], tags, start_step
+        )
 
         exp_dfs[exp_name] = experiment_df
     return exp_dfs
@@ -94,19 +91,19 @@ def separate_exps(experiments_df, tags, start_step):
 
 def exp_df_to_tags_df(experiment_df, tags, start_step):
     """
-        Given an experiment dataframe and a tags list it returns a dataframe
-        with the step column as the index with a column for each run for every
-        specified tag with the addition of an average and std column for each tag.
+    Given an experiment dataframe and a tags list it returns a dataframe
+    with the step column as the index with a column for each run for every
+    specified tag with the addition of an average and std column for each tag.
 
-        :param experiment_df: The experiment DataFrame
-        :param tags: User specified tags corresponding to which metrics to keep
-        :param start_step: First step value for which a metric has been logged
-        :return: pd.DataFrame with all run metrics and the corresponding average
-            and standard deviation for each step value.
+    :param experiment_df: The experiment DataFrame
+    :param tags: User specified tags corresponding to which metrics to keep
+    :param start_step: First step value for which a metric has been logged
+    :return: pd.DataFrame with all run metrics and the corresponding average
+        and standard deviation for each step value.
     """
 
     def split_run_name(row):
-        row.run = row.run.split('/')[-1]
+        row.run = row.run.split("/")[-1]
         return row
 
     dfs = []
@@ -128,5 +125,5 @@ def exp_df_to_tags_df(experiment_df, tags, start_step):
         dfs.append(run_df)
 
     df = pd.concat(dfs, axis=1)
-    
+
     return df

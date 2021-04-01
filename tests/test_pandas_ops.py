@@ -1,8 +1,7 @@
-import os
 import numpy as np
 import pandas as pd
 
-from tensorvis.utils.utils import *
+from tensorvis.utils.utils import exp_df_to_tags_df, separate_exps
 from tensorvis import __version__
 
 TEST_CSV = "ioLYjGW7R4Cyt5i6KAWMkQ.csv"
@@ -11,14 +10,15 @@ TEST_START_STEP = 3584
 TEST_EXP_NUM = 4
 TEST_DUMMY_TAGS = ["success", "timesteps", "reward"]
 
+
 def test_version():
-    assert __version__.__version__ == "0.2.1"
+    assert __version__.__version__ == "1.0.0"
 
 
 def test_exp_df_to_tags_df():
     """
-        Tests whether exp_df_to_tags_df returns a dataframe
-        with correct number of columns
+    Tests whether exp_df_to_tags_df returns a dataframe
+    with correct number of columns
     """
 
     steps = np.arange(100, 1100, 10)
@@ -29,20 +29,16 @@ def test_exp_df_to_tags_df():
     num_runs = np.random.randint(15)
     dfs = []
     for i in range(num_runs):
-        df = pd.DataFrame({
-            "step": steps,
-            "success": success_values,
-            "timesteps": timesteps_values,
-            "reward": rewards
-        })
+        df = pd.DataFrame({"step": steps, "success": success_values, "timesteps": timesteps_values, "reward": rewards})
         df["run"] = f"run_{i}"
         dfs.append(df)
-    
+
     exp_df = pd.concat(dfs)
 
     tags_df = exp_df_to_tags_df(exp_df, TEST_DUMMY_TAGS, 100)
 
     assert len(tags_df.columns) == num_runs * len(TEST_DUMMY_TAGS)
+
 
 def test_separate_exps():
 

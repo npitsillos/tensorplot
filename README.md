@@ -4,6 +4,17 @@ TensorVis
 </h1>
 
 <p align="center">
+  <a href="http://makeapullrequest.com">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg">
+  </a>
+  <a href="https://github.com/npitsillos/tensorplot/issues"><img src="https://img.shields.io/github/issues/npitsillos/tensorplot.svg"/></a>
+
+  <a href="https://github.com/ambv/black">
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code Style: Black">
+  </a>  
+</p>
+
+<p align="center">
 <a href="#overview">Overview</a>
 •
 <a href="#features">Features</a>
