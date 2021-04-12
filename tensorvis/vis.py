@@ -15,7 +15,17 @@ DEFAULT_COLORS = {
 }
 
 
-@click.group()
+class CustomGroup(click.Group):
+    """
+    Custom class to grab parameters sent to invoked subcommands.
+    """
+
+    def invoke(self, ctx):
+        ctx.obj = dict(args=tuple(ctx.args))
+        super(CustomGroup, self).invoke(ctx)
+
+
+@click.group(cls=CustomGroup)
 @click.pass_context
 @click.option(
     "-s", "--save", is_flag=True, help="If present will save plots to the path where this was executed.", default=True
@@ -42,6 +52,20 @@ def cli(ctx, save, vis):
         json.dump(DEFAULT_COLORS, open(config_path, "w"))
         ctx.obj["colors"] = DEFAULT_COLORS
     ctx.obj["config-path"] = config_path
+
+    # Finally seed random number generator to pick the same colours
+    # random.seed(1)
+
+    if ctx.invoked_subcommand == "plot":
+        log_file_path = os.path.join(os.getcwd(), "experiment_log.csv")
+        exps_df = pd.read_csv(log_file_path)
+        args = ctx.obj["args"]
+        exp_id_list = list(filter(lambda x: "csv" in x, args))
+        assert len(exp_id_list) == 1, "You have not provided a path to the experiment csv file."
+        # Split on '/' and get last element, works for any path
+        # then ignore the ".csv" extension to get id.
+        exp_id = exp_id_list[0].split("/")[-1][:-4]
+        ctx.obj["name"] = exps_df[exps_df["id"] == exp_id]["name"].iloc[0]
 
 
 @cli.command("set_palette")
@@ -160,6 +184,9 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
     exp_df = pd.read_csv(path, index_col=0)
     tags = tags.split(",")
     experiment_dfs = separate_exps(exp_df, tags, eval_step)
+    if isinstance(experiment_dfs, pd.DataFrame):
+        experiment_dfs = {ctx.obj["name"]: experiment_dfs}
+
     if compare:
         colors = {
             k: col
@@ -170,15 +197,16 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
     for tag in tags:
         traces = []
         for exp_name in experiment_dfs.keys():
+            label_name = exp_name if len(experiment_dfs) > 1 else tag
             experiment_df = experiment_dfs[exp_name]
             tag_run_cols = [col for col in experiment_df.columns if tag in col]
             tag_run_df = experiment_df[tag_run_cols].copy(deep=True)
             tag_run_df["mean"] = tag_run_df.mean(axis=1)
             tag_run_df["std"] = tag_run_df.std(axis=1)
             if compare:
-                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name, colors[exp_name]))
+                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name, colors[exp_name]))
             else:
-                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name))
+                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name))
 
             if not compare:
                 fig = go.Figure(traces)
@@ -203,26 +231,30 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
     "-c",
     "--components",
     "comps",
-    type=int,
+    help="A comma separated list of columns to use for plotting",
 )
-def embedding(ctx, path, comps):
+@click.option("-l", "--label", "label", help="Column to be used for the hue parameter")
+@click.option("-np", "--num-points", "points", help="Number of data points to plot from each unique label", default=-1)
+def embedding(ctx, path, comps, label, points):
     """ Plots a scatter plot of the data resulting from an embedding transformation. """
-    pass
-    # df = pd.read_csv(path)
+    embedding_df = pd.read_csv(path)
+    colors = {
+        k: col
+        for k, col in zip(
+            embedding_df[label].unique(),
+            random.sample(ctx.obj["colors"]["qualitative"], len(embedding_df[label].unique())),
+        )
+    }
+    traces = []
+    for comp_label, color in colors.items():
+        comp_label_df = embedding_df[embedding_df[label] == comp_label]
+        if points != -1:
+            comp_label_df = comp_label_df.sample(n=points)
+        traces.append(DRAW_FN_MAP["scatter"](comp_label_df, comps.split(","), color, comp_label))
 
-    # if comps == 2:
-    #     ax = sns.scatter(data=df, x="z1", y="z2", hue="label")
-    # else:
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111, projection='3d')
-
-    #     ax.set_xlabel("z1")
-    #     ax.set_ylabel("z2")
-    #     ax.set_zlabel("z3")
-    #     ax.scatter(df["z1"], df["z2"], df["z3"])
-
+    fig = go.Figure(traces)
     # if ctx.obj["save"]:
     #     fig = ax.get_figure()
     #     fig.savefig(f"{tag}.png")
-    # if ctx.obj["vis"]:
-    #     plt.show()
+    if ctx.obj["vis"]:
+        fig.show()
