@@ -7,12 +7,18 @@ import tensorboard as tb
 import plotly.express as px
 import plotly.graph_objects as go
 
-from tensorvis.utils import separate_exps, DRAW_FN_MAP
+from tensorvis.utils import separate_exps, DRAW_FN_MAP, update_layout
 
-DEFAULT_COLORS = {
-    "qualitative": px.colors.qualitative.Plotly,
-    "sequential": px.colors.sequential.Plotly3,
+CONFIG = {
+    "seed": random.randint(0, 2 ** 10 - 1),
+    "default_colors": {
+        "qualitative": px.colors.qualitative.Plotly,
+        "sequential": px.colors.sequential.Plotly3,
+    },
 }
+TENSORPLOT_ROOT = ".tensorplot"
+CONFIG_FILE = "config.json"
+EXP_LOG = "experiment_log.csv"
 
 
 class CustomGroup(click.Group):
@@ -43,29 +49,19 @@ def cli(ctx, save, vis):
 
     ctx.obj["save"] = save
     ctx.obj["vis"] = vis
-    ctx.obj["root"] = os.path.join(os.environ["HOME"], ".tensorplot")
-    config_path = os.path.join(ctx.obj["root"], "config.json")
-    if os.path.exists(config_path):
-        ctx.obj["colors"] = json.load(open(config_path, "r"))
+    ctx.obj["root"] = os.path.join(os.environ["HOME"], TENSORPLOT_ROOT)
+    ctx.obj["exp_log_path"] = os.path.join(ctx.obj["root"], EXP_LOG)
+    ctx.obj["config_path"] = os.path.join(ctx.obj["root"], CONFIG_FILE)
+    if os.path.exists(ctx.obj["config_path"]):
+        config = json.load(open(ctx.obj["config_path"], "r"))
     else:
         os.mkdir(ctx.obj["root"])
-        json.dump(DEFAULT_COLORS, open(config_path, "w"))
-        ctx.obj["colors"] = DEFAULT_COLORS
-    ctx.obj["config-path"] = config_path
+        json.dump(CONFIG, open(ctx.obj["config_path"], "w"))
+        config = CONFIG
+    ctx.obj["colors"] = config["default_colors"]
 
     # Finally seed random number generator to pick the same colours
-    # random.seed(1)
-
-    if ctx.invoked_subcommand == "plot":
-        log_file_path = os.path.join(os.getcwd(), "experiment_log.csv")
-        exps_df = pd.read_csv(log_file_path)
-        args = ctx.obj["args"]
-        exp_id_list = list(filter(lambda x: "csv" in x, args))
-        assert len(exp_id_list) == 1, "You have not provided a path to the experiment csv file."
-        # Split on '/' and get last element, works for any path
-        # then ignore the ".csv" extension to get id.
-        exp_id = exp_id_list[0].split("/")[-1][:-4]
-        ctx.obj["name"] = exps_df[exps_df["id"] == exp_id]["name"].iloc[0]
+    # random.seed(config["seed"])
 
 
 @cli.command("set_palette")
@@ -84,13 +80,14 @@ def set_palette(ctx, qualitative, sequential):
 
     ctx.obj["colors"]["qualitative"] = getattr(px.colors.qualitative, qualitative)
     ctx.obj["colors"]["sequential"] = getattr(px.colors.sequential, sequential)
-    json.dump(ctx.obj["colors"], open(ctx.obj["config-path"], "w"))
+    json.dump(ctx.obj["colors"], open(ctx.obj["config_path"], "w"))
 
 
 @cli.command("upload")
+@click.pass_context
 @click.argument("path", type=click.Path(exists=True))
 @click.option("-n", "--name", "name", help="Name to give to experiment", default=None)
-def upload(path, name):
+def upload(ctx, path, name):
     """
     Upload experiment to tensorboard dev from path.
 
@@ -100,7 +97,6 @@ def upload(path, name):
     import datetime
 
     comm = ["tensorboard", "dev", "upload", "--logdir", "--one_shot"]
-    log_file_path = os.path.join(os.getcwd(), "experiment_log.csv")
     try:
         comm.insert(4, path)
         if name is not None:
@@ -114,38 +110,42 @@ def upload(path, name):
             "id": pd.Series([exp_id], dtype=str),
         }
         df = pd.DataFrame(data=data)
-        if not os.path.exists(log_file_path):
-            df.to_csv(log_file_path, index=False)
+        if not os.path.exists(ctx.obj["exp_log_path"]):
+            df.to_csv(ctx.obj["exp_log_path"], index=False)
         else:
-            old_df = pd.read_csv(log_file_path)
+            old_df = pd.read_csv(ctx.obj["exp_log_path"])
             new_df = old_df.append(df, ignore_index=True)
-            new_df.to_csv(log_file_path, index=False)
+            new_df.to_csv(ctx.obj["exp_log_path"], index=False)
         print(f"Experiment ID returned from tensorboard: {exp_id}")
     except subprocess.CalledProcessError as err:
         print(err.stderr)
 
 
 @cli.command("download")
-@click.argument("experiment")
-def download(experiment):
+@click.pass_context
+@click.argument("name")
+def download(ctx, name):
     """
     Download experiment file as csv.
-    EXPERIMENT is the id of the experiment to download from Tensorboard dev.
+    NAME is the name of the experiment data to download from Tensorboard dev.
     """
+    exps_df = pd.read_csv(ctx.obj["exp_log_path"])
+    exp_id = exps_df[exps_df["name"] == name]["id"].values[0]
+
     # Get experiment data using tensorboard and experiment id
-    tb_experiment = tb.data.experimental.ExperimentFromDev(experiment)
+    tb_experiment = tb.data.experimental.ExperimentFromDev(exp_id)
 
     exp_df = tb_experiment.get_scalars()
     exp_df = exp_df.pivot_table(index=["run", "step"], columns="tag", values="value")
     exp_df = exp_df.reset_index()
     exp_df.columns.name = None
-    exp_df.columns.names = [None for name in exp_df.columns.names]
-    exp_df.to_csv(os.path.join(os.getcwd(), experiment + ".csv"))
+    exp_df.columns.names = [None for _ in exp_df.columns.names]
+    exp_df.to_csv(os.path.join(ctx.obj["root"], exp_id + ".csv"))
 
 
 @cli.command("plot")
 @click.pass_context
-@click.argument("path", type=click.Path(exists=True))
+@click.argument("name")
 @click.option(
     "-t",
     "--tags",
@@ -154,19 +154,9 @@ def download(experiment):
             Some runs may have more than one scalar plotted.",
 )
 @click.option(
-    "-es", "--eval-step", "eval_step", help="First step value corresponding to datapoints for success.", default=2000
-)
-@click.option(
-    "-ms",
-    "--max-step",
-    "max_step",
-    help="Maximum step to plot up to.  Handles cases when algorithms have mismatch\
-            in number of steps trained on.",
-    type=int,
-)
-@click.option(
     "--compare", help="Denotes whether experiments are to be compared and appear on the same plot.", is_flag=True
 )
+@click.option("--variance", help="Whether to plot variance in plots", is_flag=True)
 @click.option(
     "-pt",
     "--plot-type",
@@ -174,18 +164,22 @@ def download(experiment):
     help="Type of plot to create.",
     default="line",
 )
-def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
+@click.option("--title", "title", help="Title for the plot", default="Performance")
+def plot(ctx, name, tags, compare, variance, plot_type, title):
     """
     Plots the data in the csv file identified by PATH.
 
-    PATH is the id of the experiment to download from Tensorboard dev.
+    NAME is the name of the experiment downloaded from Tensorboard dev.
     """
 
-    exp_df = pd.read_csv(path, index_col=0)
+    exps_df = pd.read_csv(ctx.obj["exp_log_path"])
+    exp_id = exps_df[exps_df["name"] == name]["id"].values[0]
+
+    exp_df = pd.read_csv(os.path.join(ctx.obj["root"], f"{exp_id}.csv"), index_col=0)
     tags = tags.split(",")
-    experiment_dfs = separate_exps(exp_df, tags, eval_step)
+    experiment_dfs = separate_exps(exp_df, tags)
     if isinstance(experiment_dfs, pd.DataFrame):
-        experiment_dfs = {ctx.obj["name"]: experiment_dfs}
+        experiment_dfs = {name: experiment_dfs}
 
     if compare:
         colors = {
@@ -201,27 +195,28 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
             experiment_df = experiment_dfs[exp_name]
             tag_run_cols = [col for col in experiment_df.columns if tag in col]
             tag_run_df = experiment_df[tag_run_cols].copy(deep=True)
+            tag_run_df.dropna(inplace=True)
             tag_run_df["mean"] = tag_run_df.mean(axis=1)
             tag_run_df["std"] = tag_run_df.std(axis=1)
             if compare:
-                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name, colors[exp_name]))
+                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name, variance, colors[exp_name]))
             else:
-                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name))
-
-            if not compare:
+                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, label_name, variance))
                 fig = go.Figure(traces)
+                fig = update_layout(fig, title, "Episodes", tag.title())
                 if ctx.obj["vis"]:
                     fig.show()
                 if ctx.obj["save"]:
-                    fig.write_image(f"{exp_name}_{tag}.png")
+                    fig.write_image(f"{exp_name}_{tag}.png", width=2000, height=1000, scale=1)
                 traces = []
 
         if compare:
             fig = go.Figure(traces)
+            fig = update_layout(fig, title, "Episodes", tag.title())
             if ctx.obj["vis"]:
                 fig.show()
             if ctx.obj["save"]:
-                fig.write_image(f"{exp_name}_{tag}.png")
+                fig.write_image(f"{name}_{tag}.png", width=2000, height=1000, scale=1)
 
 
 @cli.command("embedding")
@@ -235,26 +230,31 @@ def plot(ctx, path, tags, eval_step, max_step, compare, plot_type):
 )
 @click.option("-l", "--label", "label", help="Column to be used for the hue parameter")
 @click.option("-np", "--num-points", "points", help="Number of data points to plot from each unique label", default=-1)
-def embedding(ctx, path, comps, label, points):
+@click.option("-t", "--title", "title", help="Title for the embedding plot", default="Embedding")
+def embedding(ctx, path, comps, label, points, title):
     """ Plots a scatter plot of the data resulting from an embedding transformation. """
     embedding_df = pd.read_csv(path)
+    unique = embedding_df[label].unique()
+    unique = list(unique)
     colors = {
         k: col
         for k, col in zip(
-            embedding_df[label].unique(),
+            unique,
             random.sample(ctx.obj["colors"]["qualitative"], len(embedding_df[label].unique())),
         )
     }
     traces = []
+    comps = comps.split(",")
     for comp_label, color in colors.items():
         comp_label_df = embedding_df[embedding_df[label] == comp_label]
         if points != -1:
             comp_label_df = comp_label_df.sample(n=points)
-        traces.append(DRAW_FN_MAP["scatter"](comp_label_df, comps.split(","), color, comp_label))
+        traces.append(DRAW_FN_MAP["scatter"](comp_label_df, comps, color, comp_label))
 
     fig = go.Figure(traces)
     # if ctx.obj["save"]:
     #     fig = ax.get_figure()
     #     fig.savefig(f"{tag}.png")
+    fig = update_layout(fig, title, comps[0], comps[1])
     if ctx.obj["vis"]:
         fig.show()
