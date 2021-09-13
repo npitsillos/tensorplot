@@ -3,7 +3,7 @@ name: Release tensorvis
 on:
   push:
     tags:
-      - '*.*.*'
+      - 'v*.*.*'
 
 job:
   Publish:
