@@ -136,12 +136,12 @@ def download(ctx, name):
 
     exps_df = pd.read_csv(ctx.obj["exp_log_path"])
     exp_id = exps_df[exps_df["name"] == name]["id"].values[0]
-    
+
     # Is this the first time the experiment is downloaded?
     exp_path = os.path.join(ctx.obj["root"], name, exp_id)
     if not os.path.exists(exp_path):
         os.mkdir(os.path.join(ctx.obj["root"], name, exp_id))
-    
+
     # Get experiment data using tensorboard and experiment id
     tb_experiment = tb.data.experimental.ExperimentFromDev(exp_id)
 
@@ -201,8 +201,9 @@ def plot(ctx, name, tags, compare, variance, plot_type, title):
             traces = []
 
         # Handle '/' separator when distinguishing experiment modes
-        if '/' in tag:
-                tag = tag.split('/')[-1]
+        if "/" in tag:
+            tag = tag.split("/")[-1]
+
         # If single experiment and the user is not comparing runs
         # then get run average and save
         if not compare and SINGLE_EXPERIMENT_SUBSTR in list(experiment_dfs.keys())[0]:
@@ -216,7 +217,7 @@ def plot(ctx, name, tags, compare, variance, plot_type, title):
                 fig.show()
             if ctx.obj["save"]:
                 fig.write_image(os.path.join(exp_path, f"{tag}.png"), width=2000, height=1000, scale=1)
-        
+
         for exp_name in experiment_dfs.keys():
             experiment_df = experiment_dfs[exp_name]
             tag_run_df = experiment_df.copy(deep=True)

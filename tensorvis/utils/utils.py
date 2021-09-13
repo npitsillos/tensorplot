@@ -13,6 +13,7 @@ SINGLE_EXPERIMENT_SUBSTR = "run"
 # based on number of of runs
 SUBSTR_LEN = 5
 
+
 def _color_is_hex(color: str) -> bool:
     return color[0] == "#"
 
@@ -133,13 +134,15 @@ def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Dict[str, pd
     if experiments_df["run"][0].find("/") == -1:
         single_exp = True
         run_col_vals = experiments_df.run.unique()
-        # All runs in a single experiments should have the same length 
+        # All runs in a single experiments should have the same length
         # before the SINGLE_EXPERIMENT_SUBSTR
         run_str_index = run_col_vals[0].index(SINGLE_EXPERIMENT_SUBSTR)
-        run_col_vals = [x[run_str_index:run_str_index + SUBSTR_LEN + (len(str(len(run_col_vals))) - 1)] for x in run_col_vals]
+        run_col_vals = [
+            x[run_str_index : run_str_index + SUBSTR_LEN + (len(str(len(run_col_vals))) - 1)] for x in run_col_vals
+        ]
     else:
         run_col_vals = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
-    
+
     for run_col_val in run_col_vals:
         run_col_val_str = run_col_val
         if not single_exp:
