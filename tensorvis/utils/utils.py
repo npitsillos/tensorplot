@@ -3,7 +3,15 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from ast import literal_eval
-from typing import List, Union, Dict
+from typing import Dict, List, Optional, Union
+
+# If a single experiment with multiple runs is given
+# this helps in identifying the index of 'run' in order
+# to get all runs for naming
+SINGLE_EXPERIMENT_SUBSTR = "run"
+# This is the base length that will be added to
+# based on number of of runs
+SUBSTR_LEN = 5
 
 
 def _color_is_hex(color: str) -> bool:
@@ -20,7 +28,7 @@ def _hex_to_rgba_string(color: str, opacity: int) -> str:
 
 
 def draw_line(
-    experiment_df: pd.DataFrame, label_name: str, variance: bool = False, color: str = "#636EFA"
+    experiment_df: pd.DataFrame, label_name: Optional[str] = None, variance: bool = False, color: str = "#636EFA"
 ) -> List[go.Scatter]:
     """
     Return a line plot of the data provided in the dataframe.
@@ -35,7 +43,7 @@ def draw_line(
         x=experiment_df.index,
         y=experiment_df["mean"],
         mode="lines",
-        showlegend=True,
+        showlegend=bool(label_name),
         name=label_name,
         line=dict(color=color),
     )
@@ -106,10 +114,13 @@ def draw_scatter(
     return embedding_plot
 
 
-def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Union[Dict[str, pd.DataFrame], pd.DataFrame]:
+def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Dict[str, pd.DataFrame]:
     """
     Takes an experiment dataframe containing at least one experiment and
     returns a list of dataframes each corresponding to a separate experiment.
+
+    If a single experiment is passed then its runs are separated into
+    different dataframes.
 
     :param experiments_df: DataFrame containing at least one experiment
     :param tags: User specified tags corresponding to which metrics to keep
@@ -117,16 +128,27 @@ def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Union[Dict[s
     """
 
     exp_dfs = {}
-    # Case where single experiment in the dataframe so don't consider each run as
-    # a separate experiment.
+    single_exp = False
+    # If sinle experiment get each otherwise get name
+    # of each subdirectory
     if experiments_df["run"][0].find("/") == -1:
-        return exp_df_to_tags_df(experiments_df, tags)
+        single_exp = True
+        run_col_vals = experiments_df.run.unique()
+        # All runs in a single experiments should have the same length
+        # before the SINGLE_EXPERIMENT_SUBSTR
+        run_str_index = run_col_vals[0].index(SINGLE_EXPERIMENT_SUBSTR)
+        run_col_vals = [
+            x[run_str_index : run_str_index + SUBSTR_LEN + (len(str(len(run_col_vals))) - 1)] for x in run_col_vals
+        ]
+    else:
+        run_col_vals = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
 
-    exp_names = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
-    for exp_name in exp_names:
-        experiment_df = exp_df_to_tags_df(experiments_df[experiments_df.run.map(lambda x: exp_name + "/" in x)], tags)
-
-        exp_dfs[exp_name] = experiment_df
+    for run_col_val in run_col_vals:
+        run_col_val_str = run_col_val
+        if not single_exp:
+            run_col_val_str = run_col_val + "/"
+        experiment_df = exp_df_to_tags_df(experiments_df[experiments_df.run.map(lambda x: run_col_val_str in x)], tags)
+        exp_dfs[run_col_val] = experiment_df
     return exp_dfs
 
 
