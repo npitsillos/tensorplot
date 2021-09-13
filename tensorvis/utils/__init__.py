@@ -1,4 +1,4 @@
-from tensorvis.utils.utils import draw_line, draw_scatter, separate_exps, update_layout
+from tensorvis.utils.utils import draw_line, draw_scatter, separate_exps, update_layout, SINGLE_EXPERIMENT_SUBSTR
 
 DRAW_FN_MAP = {"line": draw_line, "scatter": draw_scatter}
 
