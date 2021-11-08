@@ -8,10 +8,23 @@ from typing import Dict, List, Optional, Union
 # If a single experiment with multiple runs is given
 # this helps in identifying the index of 'run' in order
 # to get all runs for naming
-SINGLE_EXPERIMENT_SUBSTR = "run"
+RL_RUN = "run"
 # This is the base length that will be added to
-# based on number of of runs
+# based on number of runs
 SUBSTR_LEN = 5
+
+
+def get_x_title(tag: str) -> str:
+    """
+    Returns the correct label for the x-axis given the tag
+
+    :param tag: The tag logged in tensoboard.
+    """
+
+    if "timesteps" in tag or "success" in tag:
+        return "Timesteps"
+    else:
+        return "Updates"
 
 
 def _color_is_hex(color: str) -> bool:
@@ -128,26 +141,22 @@ def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Dict[str, pd
     """
 
     exp_dfs = {}
-    single_exp = False
     # If sinle experiment get each otherwise get name
     # of each subdirectory
     if experiments_df["run"][0].find("/") == -1:
-        single_exp = True
-        run_col_vals = experiments_df.run.unique()
+        exp_name = experiments_df["run"][0]
+
         # All runs in a single experiments should have the same length
         # before the SINGLE_EXPERIMENT_SUBSTR
-        run_str_index = run_col_vals[0].index(SINGLE_EXPERIMENT_SUBSTR)
-        run_col_vals = [
-            x[run_str_index : run_str_index + SUBSTR_LEN + (len(str(len(run_col_vals))) - 1)] for x in run_col_vals
-        ]
+        if RL_RUN in exp_name:
+            # This is my RL work so handle accordingly with the substring
+            run_str_index = exp_name.index(RL_RUN)
+            run_col_vals = [exp_name[0 : run_str_index - 1]]
     else:
         run_col_vals = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
 
     for run_col_val in run_col_vals:
-        run_col_val_str = run_col_val
-        if not single_exp:
-            run_col_val_str = run_col_val + "/"
-        experiment_df = exp_df_to_tags_df(experiments_df[experiments_df.run.map(lambda x: run_col_val_str in x)], tags)
+        experiment_df = exp_df_to_tags_df(experiments_df[experiments_df.run.map(lambda x: run_col_val in x)], tags)
         exp_dfs[run_col_val] = experiment_df
     return exp_dfs
 
@@ -176,7 +185,6 @@ def exp_df_to_tags_df(experiment_df: pd.DataFrame, tags: List[str]) -> pd.DataFr
         run_df.index.rename("step", inplace=True)
         index = run_df.first_valid_index()
         run_df = run_df.loc[index:]
-        # Set success value to 0 at 0 episodes
         run_df.at[0, :] = 0
         run_df = run_df.sort_index()
         run_df.rename(columns=lambda x: f"{run}_{x}", inplace=True)
@@ -186,7 +194,7 @@ def exp_df_to_tags_df(experiment_df: pd.DataFrame, tags: List[str]) -> pd.DataFr
     return df
 
 
-def update_layout(fig: go.Figure, title: str, x_title: str, y_title: str) -> go.Figure:
+def update_layout(fig: go.Figure, title: str, y_title: str) -> go.Figure:
     """
     Updates figure layout.
 
@@ -199,7 +207,7 @@ def update_layout(fig: go.Figure, title: str, x_title: str, y_title: str) -> go.
     fig.update_layout(
         title_text=title,
         hovermode="x",
-        xaxis_title=x_title,
+        xaxis_title=get_x_title(y_title.lower()),
         yaxis_title=y_title,
         title_x=0.5,
         showlegend=True,

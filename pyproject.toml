@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tensorvis"
-version = "1.1.5"
+version = "1.2.5"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
 readme = "README.md"
@@ -9,7 +9,7 @@ repository = "https://github.com/npitsillos/tensorplot.git"
 [tool.poetry.dependencies]
 python = "^3.7"
 pandas = "^1.1.4"
-click = "^7.1.2"
+click = "^8.0.0"
 tensorboard = "^2.4.0"
 plotly = "^4.14.3"
 kaleido = "^0.2.1"
