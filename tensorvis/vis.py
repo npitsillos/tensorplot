@@ -1,13 +1,14 @@
 import os
 import json
 import click
+import shutil
 import random
 import pandas as pd
 import tensorboard as tb
 import plotly.express as px
 import plotly.graph_objects as go
 
-from tensorvis.utils import separate_exps, DRAW_FN_MAP, update_layout, SINGLE_EXPERIMENT_SUBSTR
+from tensorvis.utils import separate_exps, DRAW_FN_MAP, update_layout
 
 CONFIG = {
     "seed": random.randint(0, 2 ** 10 - 1),
@@ -21,17 +22,12 @@ CONFIG_FILE = "config.json"
 EXP_LOG = "experiment_log.csv"
 
 
-class CustomGroup(click.Group):
-    """
-    Custom class to grab parameters sent to invoked subcommands.
-    """
-
-    def invoke(self, ctx):
-        ctx.obj = dict(args=tuple(ctx.args))
-        super(CustomGroup, self).invoke(ctx)
+def complete_exp_names(ctx, param, incomplete):
+    names = next(os.walk(os.path.join(os.environ["HOME"], TENSORPLOT_ROOT)))[1]
+    return [name for name in names if name.startswith(incomplete)]
 
 
-@click.group(cls=CustomGroup)
+@click.group()
 @click.pass_context
 @click.option(
     "-s", "--save", is_flag=True, help="If present will save plots to the path where this was executed.", default=True
@@ -86,7 +82,6 @@ def set_palette(ctx, qualitative, sequential):
 @cli.command("upload")
 @click.pass_context
 @click.argument("path", type=click.Path(exists=True))
-# @click.option("-n", "--name", "name", help="Name to give to experiment", default=None)
 @click.argument("name")
 def upload(ctx, path, name):
     """
@@ -115,10 +110,17 @@ def upload(ctx, path, name):
             df.to_csv(ctx.obj["exp_log_path"], index=False)
         else:
             old_df = pd.read_csv(ctx.obj["exp_log_path"])
+            exps_present = old_df["name"].tolist()
+            if name in exps_present:
+                idx = old_df.index[old_df["name"] == name]
+                old_df.drop(idx, inplace=True)
+                old_df.reset_index(drop=True, inplace=True)
             new_df = old_df.append(df, ignore_index=True)
             new_df.to_csv(ctx.obj["exp_log_path"], index=False)
+
         # Finally create directory in root folder named with `name`
-        os.mkdir(os.path.join(ctx.obj["root"], name))
+        if not os.path.exists(os.path.join(ctx.obj["root"], name)):
+            os.mkdir(os.path.join(ctx.obj["root"], name))
 
         print(f"Experiment ID returned from tensorboard: {exp_id}")
     except subprocess.CalledProcessError as err:
@@ -127,17 +129,22 @@ def upload(ctx, path, name):
 
 @cli.command("download")
 @click.pass_context
-@click.argument("name")
+@click.argument("name", shell_complete=complete_exp_names)
 def download(ctx, name):
     """
     Download experiment file as csv.
     NAME is the name of the experiment data to download from Tensorboard dev.
     """
-
     exps_df = pd.read_csv(ctx.obj["exp_log_path"])
     exp_id = exps_df[exps_df["name"] == name]["id"].values[0]
 
     # Is this the first time the experiment is downloaded?
+    prev_dirs = os.listdir(os.path.join(ctx.obj["root"], name))
+    if len(prev_dirs) > 0:
+        # Usually only one folder will exist but iterate over whole list
+        for f in prev_dirs:
+            shutil.rmtree(os.path.join(os.path.join(ctx.obj["root"], name), f))
+
     exp_path = os.path.join(ctx.obj["root"], name, exp_id)
     if not os.path.exists(exp_path):
         os.mkdir(os.path.join(ctx.obj["root"], name, exp_id))
@@ -155,7 +162,7 @@ def download(ctx, name):
 
 @cli.command("plot")
 @click.pass_context
-@click.argument("name")
+@click.argument("name", shell_complete=complete_exp_names)
 @click.option(
     "-t",
     "--tags",
@@ -174,8 +181,7 @@ def download(ctx, name):
     help="Type of plot to create.",
     default="line",
 )
-@click.option("--title", "title", help="Title for the plot", default="Performance")
-def plot(ctx, name, tags, compare, variance, plot_type, title):
+def plot(ctx, name, tags, compare, variance, plot_type):
     """
     Plots the data in the csv file identified by PATH.
 
@@ -200,23 +206,26 @@ def plot(ctx, name, tags, compare, variance, plot_type, title):
         if compare:
             traces = []
 
-        # Handle '/' separator when distinguishing experiment modes
-        if "/" in tag:
-            tag = tag.split("/")[-1]
+        tag = tag.split("/")  # if distinguishing between training and eval
 
         # If single experiment and the user is not comparing runs
         # then get run average and save
-        if not compare and SINGLE_EXPERIMENT_SUBSTR in list(experiment_dfs.keys())[0]:
+        if len(experiment_dfs) == 1:
             all_runs = list(experiment_dfs.values())
             all_runs_df = pd.concat(all_runs, axis=1)
-            all_runs_df["mean"] = all_runs_df.mean(axis=1)
-            all_runs_df["std"] = all_runs_df.std(axis=1)
-            fig = go.Figure(DRAW_FN_MAP[plot_type](all_runs_df, variance))
-            fig = update_layout(fig, title, "Episodes", tag.title())
+            cols = all_runs_df.columns.tolist()
+            df_tags = [t for t in cols if "/".join(tag) in t]
+            tag_df = all_runs_df[df_tags].copy(deep=True)
+            tag_df.dropna(inplace=True)
+            tag_df["mean"] = tag_df.mean(axis=1)
+            tag_df["std"] = tag_df.std(axis=1)
+            fig = go.Figure(DRAW_FN_MAP[plot_type](tag_df, variance=variance))
+            fig = update_layout(fig, f"{' '.join(name.split('_')).title()}", " ".join(tag).title())
             if ctx.obj["vis"]:
                 fig.show()
             if ctx.obj["save"]:
-                fig.write_image(os.path.join(exp_path, f"{tag}.png"), width=2000, height=1000, scale=1)
+                fig.write_image(os.path.join(exp_path, f"{'_'.join(tag)}.png"), width=2000, height=1000, scale=1)
+            continue
 
         for exp_name in experiment_dfs.keys():
             experiment_df = experiment_dfs[exp_name]
@@ -228,16 +237,18 @@ def plot(ctx, name, tags, compare, variance, plot_type, title):
             if compare:
                 traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name, variance, colors[exp_name]))
             else:
-                fig = go.Figure(DRAW_FN_MAP[plot_type](tag_run_df, variance))
-                fig = update_layout(fig, title, "Episodes", tag.title())
+                fig = go.Figure(DRAW_FN_MAP[plot_type](tag_run_df, variance=variance))
+                fig = update_layout(fig, f"{exp_name.title()}", " ".join(tag).title())
                 if ctx.obj["vis"]:
                     fig.show()
                 if ctx.obj["save"]:
-                    fig.write_image(os.path.join(exp_path, f"{exp_name}_{tag}.png"), width=2000, height=1000, scale=1)
+                    fig.write_image(
+                        os.path.join(exp_path, f"{exp_name}_{'_'.join(tag)}.png"), width=2000, height=1000, scale=1
+                    )
 
         if compare:
             fig = go.Figure(traces)
-            fig = update_layout(fig, title, "Episodes", tag.title())
+            fig = update_layout(fig, "Model Comparison", tag.title())
             if ctx.obj["vis"]:
                 fig.show()
             if ctx.obj["save"]:
