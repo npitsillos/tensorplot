@@ -257,7 +257,7 @@ def plot(ctx, name, tags, compare, variance, plot_type, title):
 @click.option("-np", "--num-points", "points", help="Number of data points to plot from each unique label", default=-1)
 @click.option("-t", "--title", "title", help="Title for the embedding plot", default="Embedding")
 def embedding(ctx, path, comps, label, points, title):
-    """ Plots a scatter plot of the data resulting from an embedding transformation. """
+    """Plots a scatter plot of the data resulting from an embedding transformation."""
     embedding_df = pd.read_csv(path)
     unique = embedding_df[label].unique()
     unique = list(unique)
