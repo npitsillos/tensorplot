@@ -163,6 +163,7 @@ def download(ctx, name):
 @cli.command("plot")
 @click.pass_context
 @click.argument("name", shell_complete=complete_exp_names)
+@click.option("-m", "--models", "models", help="A comma separated list of models to plot.")
 @click.option(
     "-t",
     "--tags",
@@ -181,7 +182,13 @@ def download(ctx, name):
     help="Type of plot to create.",
     default="line",
 )
-def plot(ctx, name, tags, compare, variance, plot_type):
+@click.option(
+    "--max_reward",
+    type=click.INT,
+    help="Denotes the max reward achievable in the env the model was trained when"
+    "calculating variance for envs evaluating reward rather than success",
+)
+def plot(ctx, name, tags, models, compare, variance, plot_type, max_reward):
     """
     Plots the data in the csv file identified by PATH.
 
@@ -192,8 +199,11 @@ def plot(ctx, name, tags, compare, variance, plot_type):
     exp_id = exps_df[exps_df["name"] == name]["id"].values[0]
     exp_path = os.path.join(ctx.obj["root"], name, exp_id)
     exp_df = pd.read_csv(os.path.join(exp_path, f"{exp_id}.csv"), index_col=0)
+    total_models = len(set(map(lambda x: x.split("/")[0], exp_df.run.unique())))
     tags = tags.split(",")
     experiment_dfs = separate_exps(exp_df, tags)
+    models = models.split(",") if models else list(experiment_dfs.keys())
+    experiment_dfs = {key: value for key, value in experiment_dfs.items() if key in models}
 
     if compare:
         colors = {
@@ -208,25 +218,6 @@ def plot(ctx, name, tags, compare, variance, plot_type):
 
         tag = tag.split("/")  # if distinguishing between training and eval
 
-        # If single experiment and the user is not comparing runs
-        # then get run average and save
-        if len(experiment_dfs) == 1:
-            all_runs = list(experiment_dfs.values())
-            all_runs_df = pd.concat(all_runs, axis=1)
-            cols = all_runs_df.columns.tolist()
-            df_tags = [t for t in cols if "/".join(tag) in t]
-            tag_df = all_runs_df[df_tags].copy(deep=True)
-            tag_df.dropna(inplace=True)
-            tag_df["mean"] = tag_df.mean(axis=1)
-            tag_df["std"] = tag_df.std(axis=1)
-            fig = go.Figure(DRAW_FN_MAP[plot_type](tag_df, variance=variance))
-            fig = update_layout(fig, f"{' '.join(name.split('_')).title()}", " ".join(tag).title())
-            if ctx.obj["vis"]:
-                fig.show()
-            if ctx.obj["save"]:
-                fig.write_image(os.path.join(exp_path, f"{'_'.join(tag)}.png"), width=2000, height=1000, scale=1)
-            continue
-
         for exp_name in experiment_dfs.keys():
             experiment_df = experiment_dfs[exp_name]
             tag_run_df = experiment_df.copy(deep=True)
@@ -235,24 +226,38 @@ def plot(ctx, name, tags, compare, variance, plot_type):
             tag_run_df["std"] = tag_run_df.std(axis=1)
 
             if compare:
-                traces.extend(DRAW_FN_MAP[plot_type](tag_run_df, exp_name, variance, colors[exp_name]))
+                traces.extend(
+                    DRAW_FN_MAP[plot_type](tag_run_df, exp_name, variance, colors[exp_name], max_reward=max_reward)
+                )
             else:
-                fig = go.Figure(DRAW_FN_MAP[plot_type](tag_run_df, variance=variance))
+                fig = go.Figure(DRAW_FN_MAP[plot_type](tag_run_df, variance=variance, max_reward=max_reward))
                 fig = update_layout(fig, f"{exp_name.title()}", " ".join(tag).title())
                 if ctx.obj["vis"]:
                     fig.show()
                 if ctx.obj["save"]:
                     fig.write_image(
-                        os.path.join(exp_path, f"{exp_name}_{'_'.join(tag)}.png"), width=2000, height=1000, scale=1
+                        os.path.join(exp_path, f"{exp_name}_{'_'.join(tag)}{'_variance' if variance else ''}.png"),
+                        width=2000,
+                        height=1000,
+                        scale=1,
                     )
 
         if compare:
             fig = go.Figure(traces)
-            fig = update_layout(fig, "Model Comparison", tag.title())
+            fig = update_layout(fig, "Model Comparison", " ".join(tag).title())
             if ctx.obj["vis"]:
                 fig.show()
             if ctx.obj["save"]:
-                fig.write_image(os.path.join(exp_path, f"{name}_{tag}.png"), width=2000, height=1000, scale=1)
+                fig.write_image(
+                    os.path.join(
+                        exp_path,
+                        f"{'_'.join(models) if len(models) != total_models else 'all'}_{'_'.join(tag)}"
+                        "{'_variance' if variance else ''}.png",
+                    ),
+                    width=2000,
+                    height=1000,
+                    scale=1,
+                )
 
 
 @cli.command("embedding")

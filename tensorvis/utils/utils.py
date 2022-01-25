@@ -5,10 +5,6 @@ import plotly.graph_objects as go
 from ast import literal_eval
 from typing import Dict, List, Optional, Union
 
-# If a single experiment with multiple runs is given
-# this helps in identifying the index of 'run' in order
-# to get all runs for naming
-RL_RUN = "run"
 # This is the base length that will be added to
 # based on number of runs
 SUBSTR_LEN = 5
@@ -41,7 +37,11 @@ def _hex_to_rgba_string(color: str, opacity: int) -> str:
 
 
 def draw_line(
-    experiment_df: pd.DataFrame, label_name: Optional[str] = None, variance: bool = False, color: str = "#636EFA"
+    experiment_df: pd.DataFrame,
+    label_name: Optional[str] = None,
+    variance: bool = False,
+    color: str = "#636EFA",
+    max_reward=None,
 ) -> List[go.Scatter]:
     """
     Return a line plot of the data provided in the dataframe.
@@ -65,10 +65,10 @@ def draw_line(
             color = _hex_to_rgba_string(color, 0.3)
         else:
             color = _str_rgb_color_to_rgba_str(color, 0.3)
-
+        print(max_reward)
         mean_plus_std = go.Scatter(
             x=experiment_df.index,
-            y=(experiment_df["mean"] + experiment_df["std"]).clip(upper=1),
+            y=(experiment_df["mean"] + experiment_df["std"]).clip(upper=1 if max_reward is None else max_reward),
             mode="lines",
             line=dict(width=0),
             name=f"{label_name} upper bound",
@@ -141,22 +141,23 @@ def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Dict[str, pd
     """
 
     exp_dfs = {}
-    # If sinle experiment get each otherwise get name
-    # of each subdirectory
     if experiments_df["run"][0].find("/") == -1:
-        exp_name = experiments_df["run"][0]
-
-        # All runs in a single experiments should have the same length
-        # before the SINGLE_EXPERIMENT_SUBSTR
-        if RL_RUN in exp_name:
-            # This is my RL work so handle accordingly with the substring
-            run_str_index = exp_name.index(RL_RUN)
-            run_col_vals = [exp_name[0 : run_str_index - 1]]
+        # single experiment
+        run_col_vals = experiments_df.run.unique().tolist()
+        run_str_index = experiments_df["run"][0].index("run")
+        run_col_vals = [experiments_df["run"][0][0 : run_str_index - 1]]
+        multiple = False
     else:
+        # multiple experiments
         run_col_vals = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
-
+        multiple = True
     for run_col_val in run_col_vals:
-        experiment_df = exp_df_to_tags_df(experiments_df[experiments_df.run.map(lambda x: run_col_val in x)], tags)
+        experiment_df = exp_df_to_tags_df(
+            experiments_df[
+                experiments_df.run.map(lambda x: run_col_val == x.split("/")[0] if multiple else run_col_val in x)
+            ],
+            tags,
+        )
         exp_dfs[run_col_val] = experiment_df
     return exp_dfs
 
@@ -180,14 +181,15 @@ def exp_df_to_tags_df(experiment_df: pd.DataFrame, tags: List[str]) -> pd.DataFr
     dfs = []
     experiment_df = experiment_df.apply(split_run_name, axis="columns")
     runs = experiment_df.run.unique()
-    for run in runs:
+    for i, run in enumerate(runs):
         run_df = experiment_df[experiment_df["run"] == run].loc[:, ["step"] + tags].set_index("step")
         run_df.index.rename("step", inplace=True)
         index = run_df.first_valid_index()
         run_df = run_df.loc[index:]
         run_df.at[0, :] = 0
         run_df = run_df.sort_index()
-        run_df.rename(columns=lambda x: f"{run}_{x}", inplace=True)
+        run_df.at[run_df.iloc[-1].name, :] = run_df.iloc[-2].values
+        run_df.rename(columns=lambda x: f"run_{i}", inplace=True)
         dfs.append(run_df)
     df = pd.concat(dfs, axis=1)
 
