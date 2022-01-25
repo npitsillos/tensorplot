@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tensorvis"
-version = "1.2.5"
+version = "1.2.6"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
 readme = "README.md"
