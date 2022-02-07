@@ -5,10 +5,6 @@ import plotly.graph_objects as go
 from ast import literal_eval
 from typing import Dict, List, Optional, Union
 
-# This is the base length that will be added to
-# based on number of runs
-SUBSTR_LEN = 5
-
 
 def get_x_title(tag: str) -> str:
     """

@@ -47,6 +47,12 @@ pip install tensorvis
 
 This will install ```tensorvis``` in the current python environment and will be available through the terminal.
 
+```tensorvis``` supports autocompletion of commands and experiment names using Click's [shell completion](https://click.palletsprojects.com/en/8.0.x/shell-completion/).  To initialise autocompletion run the following command if using Ubuntu and bash:
+
+```mv /path/to/virtualenvs/your-virtualenv/tensorvis/.tensorvis-complete.bash ~/```
+
+Follow Click' documentation linked above for different shell support.
+
 ## Assumptions
 There can be many different directory structures when running and logging experiments with tensorboard.  This tool makes several assumptions to make it easier to handle dataframes resulting from downloading experiments.
 

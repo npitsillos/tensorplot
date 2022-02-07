@@ -1,8 +1,11 @@
+from gc import callbacks
 import os
 import json
 import click
 import shutil
 import random
+import datetime
+import subprocess
 import pandas as pd
 import tensorboard as tb
 import plotly.express as px
@@ -40,7 +43,6 @@ def cli(ctx, save, vis):
     EXPERIMENT-ID is the ID of the experiment provided when the events
                   file is uploaded to Tensorboard dev.
     """
-
     ctx.ensure_object(dict)
 
     ctx.obj["save"] = save
@@ -90,8 +92,6 @@ def upload(ctx, path, name):
     PATH is the path to directory holding experiment events.\n
     NAME is the name given to the experiment.
     """
-    import subprocess
-    import datetime
 
     comm = ["tensorboard", "dev", "upload", "--logdir", "--one_shot"]
     try:
