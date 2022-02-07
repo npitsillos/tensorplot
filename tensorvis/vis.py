@@ -97,9 +97,12 @@ def upload(ctx, path, name):
     try:
         comm.insert(4, path)
         comm.extend(["--name", name])
-        process_ret = subprocess.run(comm, capture_output=True)
-        return_str = process_ret.stdout
-        exp_id = return_str.decode("utf-8").split("\n")[-2].split()[-1].split("/")[-2]
+        if not os.path.exists(ctx.obj["exp_log_path"]):
+            # first time interacting with tensorboard
+            return_str = subprocess.run(comm, text=True, input="yes", capture_output=True).stdout
+        else:
+            return_str = subprocess.run(comm, capture_output=True).stdout
+        exp_id = return_str.split("\n")[-2].split()[-1].split("/")[-2]
         data = {
             "date": pd.Series([datetime.date.today().strftime("%d%m%y")], dtype=str),
             "name": pd.Series([name], dtype=str),
