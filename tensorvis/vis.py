@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 from tensorvis.utils import separate_exps, DRAW_FN_MAP, update_layout
 
 CONFIG = {
-    "seed": random.randint(0, 2 ** 10 - 1),
+    "seed": random.randint(0, 2**10 - 1),
     "default_colors": {
         "qualitative": px.colors.qualitative.Plotly,
         "sequential": px.colors.sequential.Plotly3,
