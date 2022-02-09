@@ -1,13 +1,11 @@
 [tool.poetry]
 name = "tensorvis"
-version = "1.3.7"
+version = "1.3.8"
 description = "Visualisation tool to support my PhD automating the process of gathering data and plotting it"
 authors = ["Nikolas Pitsillos <npitsillos@gmail.com>"]
 readme = "README.md"
 repository = "https://github.com/npitsillos/tensorplot.git"
-include = [
-  { path = ".tensorvis-complete.bash"}
-]
+include = [".tensorvis-complete.bash"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
