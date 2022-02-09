@@ -49,7 +49,9 @@ This will install ```tensorvis``` in the current python environment and will be 
 
 ```tensorvis``` supports autocompletion of commands and experiment names using Click's [shell completion](https://click.palletsprojects.com/en/8.0.x/shell-completion/).  To initialise autocompletion run the following command if using Ubuntu and bash:
 
-```mv /path/to/virtualenvs/your-virtualenv/tensorvis/.tensorvis-complete.bash ~/```
+```mv /path/to/virtualenvs/your-virtualenv/site-packages/.tensorvis-complete.bash ~/```
+
+> The reason for this path is due to an issue with poetry not packaging data within the `.whl` file.  You can find more about this [here](https://github.com/python-poetry/poetry/issues/2015).
 
 Follow Click' documentation linked above for different shell support.
 
