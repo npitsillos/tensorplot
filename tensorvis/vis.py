@@ -1,4 +1,3 @@
-from gc import callbacks
 import os
 import json
 import click
@@ -101,7 +100,7 @@ def upload(ctx, path, name):
             # first time interacting with tensorboard
             return_str = subprocess.run(comm, text=True, input="yes", capture_output=True).stdout
         else:
-            return_str = subprocess.run(comm, capture_output=True).stdout
+            return_str = subprocess.run(comm, text=True, capture_output=True).stdout
         exp_id = return_str.split("\n")[-2].split()[-1].split("/")[-2]
         data = {
             "date": pd.Series([datetime.date.today().strftime("%d%m%y")], dtype=str),
@@ -284,7 +283,7 @@ def embedding(ctx, path, comps, label, points, title):
         k: col
         for k, col in zip(
             unique,
-            random.sample(ctx.obj["colors"]["qualitative"], len(embedding_df[label].unique())),
+            random.sample(ctx.obj["colors"]["qualitative"], len(unique)),
         )
     }
     traces = []
@@ -296,9 +295,8 @@ def embedding(ctx, path, comps, label, points, title):
         traces.append(DRAW_FN_MAP["scatter"](comp_label_df, comps, color, comp_label))
 
     fig = go.Figure(traces)
-    # if ctx.obj["save"]:
-    #     fig = ax.get_figure()
-    #     fig.savefig(f"{tag}.png")
+    if ctx.obj["save"]:
+        fig.write_image(os.path.join(os.path.dirname(path), f"{len(comps)}D_{label}.png"))
     fig = update_layout(fig, title, comps[0], comps[1])
     if ctx.obj["vis"]:
         fig.show()

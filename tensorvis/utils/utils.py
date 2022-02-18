@@ -13,7 +13,7 @@ def get_x_title(tag: str) -> str:
     :param tag: The tag logged in tensoboard.
     """
 
-    if "timesteps" in tag or "success" in tag:
+    if "reward" in tag or "success" in tag:
         return "Timesteps"
     else:
         return "Updates"
@@ -61,7 +61,7 @@ def draw_line(
             color = _hex_to_rgba_string(color, 0.3)
         else:
             color = _str_rgb_color_to_rgba_str(color, 0.3)
-        print(max_reward)
+
         mean_plus_std = go.Scatter(
             x=experiment_df.index,
             y=(experiment_df["mean"] + experiment_df["std"]).clip(upper=1 if max_reward is None else max_reward),
