@@ -147,6 +147,7 @@ def separate_exps(experiments_df: pd.DataFrame, tags: List[str]) -> Dict[str, pd
         # multiple experiments
         run_col_vals = set([name_run.split("/")[0] for name_run in experiments_df.run.unique()])
         multiple = True
+
     for run_col_val in run_col_vals:
         experiment_df = exp_df_to_tags_df(
             experiments_df[
@@ -209,7 +210,7 @@ def update_layout(fig: go.Figure, title: str, y_title: str) -> go.Figure:
         yaxis_title=y_title,
         title_x=0.5,
         showlegend=True,
-        font=dict(family="Courier New, monospace", size=15),
+        font=dict(family="Courier New, monospace", size=24),
     )
 
     return fig

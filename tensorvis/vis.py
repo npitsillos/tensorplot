@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from tensorvis.utils import separate_exps, DRAW_FN_MAP, update_layout
 
 CONFIG = {
-    "seed": random.randint(0, 2**10 - 1),
+    "seed": random.randint(0, 2 ** 10 - 1),
     "default_colors": {
         "qualitative": px.colors.qualitative.Plotly,
         "sequential": px.colors.sequential.Plotly3,
@@ -185,12 +185,13 @@ def download(ctx, name):
     default="line",
 )
 @click.option(
-    "--max_reward",
+    "--max-reward",
     type=click.INT,
     help="Denotes the max reward achievable in the env the model was trained when"
     "calculating variance for envs evaluating reward rather than success",
 )
-def plot(ctx, name, tags, models, compare, variance, plot_type, max_reward):
+@click.option("--file-name", type=click.STRING, help="The name of the file to save the image in.")
+def plot(ctx, name, tags, models, compare, variance, plot_type, max_reward, file_name):
     """
     Plots the data in the csv file identified by PATH.
 
@@ -237,8 +238,13 @@ def plot(ctx, name, tags, models, compare, variance, plot_type, max_reward):
                 if ctx.obj["vis"]:
                     fig.show()
                 if ctx.obj["save"]:
+                    filename = (
+                        f"{exp_name}_{'_'.join(tag)}{'_variance' if variance else ''}.png"
+                        if not file_name
+                        else f"{file_name}_{'_'.join(tag)}{'_variance' if variance else ''}.png"
+                    )
                     fig.write_image(
-                        os.path.join(exp_path, f"{exp_name}_{'_'.join(tag)}{'_variance' if variance else ''}.png"),
+                        os.path.join(exp_path, filename),
                         width=2000,
                         height=1000,
                         scale=1,
@@ -250,11 +256,18 @@ def plot(ctx, name, tags, models, compare, variance, plot_type, max_reward):
             if ctx.obj["vis"]:
                 fig.show()
             if ctx.obj["save"]:
+                filename = (
+                    (
+                        f"{'_'.join(models) if len(models) != total_models else 'all'}_{'_'.join(tag)}"
+                        + f"{'_variance' if variance else ''}.png"
+                    )
+                    if not file_name
+                    else f"{file_name}_{'_'.join(tag)}{'_variance' if variance else ''}.png"
+                )
                 fig.write_image(
                     os.path.join(
                         exp_path,
-                        f"{'_'.join(models) if len(models) != total_models else 'all'}_{'_'.join(tag)}"
-                        "{'_variance' if variance else ''}.png",
+                        filename,
                     ),
                     width=2000,
                     height=1000,
